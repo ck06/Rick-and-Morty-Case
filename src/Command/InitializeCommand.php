@@ -35,41 +35,62 @@ class InitializeCommand extends Command
 
     protected function execute(InputInterface $input, OutputInterface $output): int
     {
-        $classes = [
-            Character::class,
-            Location::class,
-            Episode::class,
-        ];
-
-        foreach ($classes as $class) {
-            $type = new $class();
-            $page = 1;
-            try {
-                while ($page++) {
-                    foreach ($type->page($page)->get()->results as $result) {
-                        $this->persist($result);
-                    }
-
-                    // for doctrine performance reasons, we want to flush and clear periodically
-                    // We'll do this every 5 pages, as well as once at the end.
-                    if ($page % 5 === 0) {
-                        $this->em->flush();
-                        $this->em->clear();
-                    }
-                }
-            } catch (NotFoundException) {
-                // This means either the API is not available, or we ran out of pages to crawl.
-            }
-
-            // Do a flush before continuing in case we have any unprocessed entities
-            $this->em->flush();
-            $this->em->clear();
-        }
+        $lastCrawledEpisode = $this->em->getRepository(EpisodeEntity::class)->findHighestEpisodeId();
+        $this->crawlEpisodes(++$lastCrawledEpisode);
 
         return 0;
     }
 
-    private function persist(EpisodeDto|LocationDto|CharacterDto $data): void
+    private function crawlEpisodes(int $startAt = 1): void
+    {
+        $episode = new Episode();
+        try {
+            for ($current = $startAt; true; $current++) {
+                $dto = $episode->get($current);
+                $this->persist($dto);
+
+                // for performance reasons, we will flush and clear all our entities every 50 episodes.
+                if ($current % 50 === 0) {
+                    $this->em->flush();
+                    $this->em->clear();
+                }
+            }
+        } catch (NotFoundException) {
+            // This means either the API is not available, or we ran out of episodes to crawl.
+        }
+
+        // one final flush & clear to finish the process
+        $this->em->flush();
+        $this->em->clear();
+    }
+
+    /**
+     * @param class-string $class
+     * @param array<int|string> $ids
+     *
+     * @return array<LocationDto|CharacterDto|EpisodeDto>
+     */
+    private function crawlRelations(string $class, array $ids): array
+    {
+        $ids = array_map(fn($id) => is_int($id) ? $id : $this->getIdFromUrl($id), $ids);
+        $type = new $class();
+
+        $relations = [];
+        $fetchedRelations = $type->get(...$ids);
+
+        // if we only get 1 result, it will not be an array. Wrap it here to avoid breaking the rest of the logic.
+        if (!is_array($fetchedRelations)) {
+            $fetchedRelations = [$fetchedRelations];
+        }
+
+        foreach ($fetchedRelations as $result) {
+            $relations[] = $this->persist($result);
+        }
+
+        return $relations;
+    }
+
+    private function persist(EpisodeDto|LocationDto|CharacterDto $data): EpisodeEntity|LocationEntity|CharacterEntity
     {
         $entity = match (get_class($data)) {
             EpisodeDto::class => $this->createEpisodeEntity($data),
@@ -78,6 +99,8 @@ class InitializeCommand extends Command
         };
 
         $this->em->persist($entity);
+
+        return $entity;
     }
 
     private function createEpisodeEntity(EpisodeDto $dto): EpisodeEntity
@@ -92,23 +115,11 @@ class InitializeCommand extends Command
             ->setCreatedAt(new DateTimeImmutable($dto->created))
         ;
 
-        // TODO add characters
-        return $entity;
-    }
+        $characters = $this->crawlRelations(Character::class, $dto->characters);
+        foreach ($characters as $character) {
+            $entity->addCharacter($this->persist($character));
+        }
 
-    private function createLocationEntity(LocationDto $dto): LocationEntity
-    {
-        $entity = new LocationEntity();
-        $entity
-            ->setId($dto->id)
-            ->setName($dto->name)
-            ->setType($dto->type)
-            ->setDimension($dto->dimension)
-            ->setUrl($dto->url)
-            ->setCreatedAt(new DateTimeImmutable($dto->created))
-        ;
-
-        // TODO relations (characters, originCharacters)
         return $entity;
     }
 
@@ -127,7 +138,40 @@ class InitializeCommand extends Command
             ->setCreatedAt(new DateTimeImmutable($dto->created))
         ;
 
-        // TODO relations (origin, location, episodes)
+        // sometimes the origin is unknown, which we will leave NULL in the database
+        if ($dto->origin->url !== '') {
+            /** @var LocationEntity $originLocation */
+            $originLocation = $this->crawlRelations(Location::class, [$dto->origin->url])[0];
+            $entity->setOriginLocation($originLocation);
+        }
+
+        // we do always expect a last known location, at least until a test run proves otherwise.
+        /** @var LocationEntity $lastKnownLocation */
+        $lastKnownLocation = $this->crawlRelations(Location::class, [$dto->location->url])[0];
+        $entity->setLocation($lastKnownLocation);
+
+        // To prevent infinite loops we purposely do not fetch Episodes here.
         return $entity;
+    }
+
+    private function createLocationEntity(LocationDto $dto): LocationEntity
+    {
+        $entity = new LocationEntity();
+        $entity
+            ->setId($dto->id)
+            ->setName($dto->name)
+            ->setType($dto->type)
+            ->setDimension($dto->dimension)
+            ->setUrl($dto->url)
+            ->setCreatedAt(new DateTimeImmutable($dto->created))
+        ;
+
+        // We purposely do not fetch any relations for a location - set these via Character instead.
+        return $entity;
+    }
+
+    private function getIdFromUrl(string $url): int
+    {
+        return (int)substr($url, 1 + (int)strrpos($url, '/'));
     }
 }
