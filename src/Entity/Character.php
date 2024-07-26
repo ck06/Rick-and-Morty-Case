@@ -2,7 +2,6 @@
 
 namespace App\Entity;
 
-use App\Entity\Interface\FromDto;
 use App\Repository\CharacterRepository;
 use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;
@@ -12,7 +11,6 @@ use Doctrine\ORM\Mapping as ORM;
 class Character
 {
     #[ORM\Id]
-    #[ORM\GeneratedValue]
     #[ORM\Column]
     private ?int $id = null;
 
@@ -137,6 +135,7 @@ class Character
     public function setOriginLocation(?Location $originLocation): static
     {
         $this->originLocation = $originLocation;
+        $originLocation?->addOriginCharacter($this);
 
         return $this;
     }
@@ -149,6 +148,7 @@ class Character
     public function setLocation(?Location $location): static
     {
         $this->location = $location;
+        $location?->addCharacter($this);
 
         return $this;
     }
