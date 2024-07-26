@@ -79,15 +79,7 @@ class InitializeCommand extends Command
         $fetchedRelations = $type->get(...$ids);
 
         // if we only get 1 result, it will not be an array. Wrap it here to avoid breaking the rest of the logic.
-        if (!is_array($fetchedRelations)) {
-            $fetchedRelations = [$fetchedRelations];
-        }
-
-        foreach ($fetchedRelations as $result) {
-            $relations[] = $this->persist($result);
-        }
-
-        return $relations;
+        return is_array($fetchedRelations) ? $fetchedRelations : [$fetchedRelations];
     }
 
     private function persist(EpisodeDto|LocationDto|CharacterDto $data): EpisodeEntity|LocationEntity|CharacterEntity
@@ -140,15 +132,15 @@ class InitializeCommand extends Command
 
         // sometimes the origin is unknown, which we will leave NULL in the database
         if ($dto->origin->url !== '') {
-            /** @var LocationEntity $originLocation */
             $originLocation = $this->crawlRelations(Location::class, [$dto->origin->url])[0];
-            $entity->setOriginLocation($originLocation);
+            $entity->setOriginLocation($this->persist($originLocation));
         }
 
-        // we do always expect a last known location, at least until a test run proves otherwise.
-        /** @var LocationEntity $lastKnownLocation */
-        $lastKnownLocation = $this->crawlRelations(Location::class, [$dto->location->url])[0];
-        $entity->setLocation($lastKnownLocation);
+        // sometimes the last known location is unknown, which we will leave NULL in the database
+        if ($dto->location->url !== '') {
+            $lastKnownLocation = $this->crawlRelations(Location::class, [$dto->location->url])[0];
+            $entity->setLocation($this->persist($lastKnownLocation));
+        }
 
         // To prevent infinite loops we purposely do not fetch Episodes here.
         return $entity;
