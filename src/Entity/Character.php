@@ -8,11 +8,16 @@ use Doctrine\Common\Collections\Collection;
 use Doctrine\ORM\Mapping as ORM;
 
 #[ORM\Entity(repositoryClass: CharacterRepository::class)]
+#[ORM\Table(name: 'rnm_character')]
 class Character
 {
     #[ORM\Id]
+    #[ORM\GeneratedValue]
     #[ORM\Column]
     private ?int $id = null;
+
+    #[ORM\Column]
+    private ?int $remoteId = null;
 
     #[ORM\Column(length: 255)]
     private ?string $name = null;
@@ -42,6 +47,7 @@ class Character
      * @var Collection<int, Episode>
      */
     #[ORM\ManyToMany(targetEntity: Episode::class, inversedBy: 'characters')]
+    #[ORM\JoinTable(name: 'rnm_character_episode')]
     private Collection $episodes;
 
     #[ORM\Column(length: 255)]
@@ -63,6 +69,18 @@ class Character
     public function setId(int $id): static
     {
         $this->id = $id;
+
+        return $this;
+    }
+
+    public function getRemoteId(): ?int
+    {
+        return $this->remoteId;
+    }
+
+    public function setRemoteId(int $id): static
+    {
+        $this->remoteId = $id;
 
         return $this;
     }

@@ -27,6 +27,6 @@ class EpisodeRepository extends ServiceEntityRepository
             ->execute()
         ;
 
-        return !$result ? 0 : $result;
+        return $result[0]['id'] ?? 0;
     }
 }
