@@ -5,6 +5,7 @@ namespace App\Command;
 use App\Entity\Character as CharacterEntity;
 use App\Entity\Episode as EpisodeEntity;
 use App\Entity\Location as LocationEntity;
+use App\Service\ApiCrawler;
 use DateTimeImmutable;
 use Doctrine\ORM\EntityManagerInterface;
 use NickBeen\RickAndMortyPhpApi\Character;
@@ -33,6 +34,7 @@ class InitializeCommand extends Command
 
     public function __construct(
         private readonly EntityManagerInterface $em,
+        private readonly ApiCrawler $crawler,
     ) {
         parent::__construct();
     }
@@ -56,7 +58,7 @@ class InitializeCommand extends Command
     private function crawlEpisodes(int $startAt = 1): void
     {
         // get total amount of episodes (according to the API)
-        $totalEpisodes = (new Episode())->get()->info->count;
+        $totalEpisodes = $this->crawler->getTotalAmountOf(Episode::class);
         $this->progress->setMaxSteps($totalEpisodes);
         $this->progress->setProgress($startAt);
 
@@ -92,50 +94,6 @@ class InitializeCommand extends Command
         $this->progress->finish();
     }
 
-    /**
-     * @param class-string $class
-     * @param array<int|string> $ids
-     *
-     * @return array<LocationDto|LocationEntity|CharacterDto|CharacterEntity|EpisodeDto|EpisodeEntity>
-     */
-    private function crawlRelations(string $class, array $ids): array
-    {
-        $repositoryClass = match ($class) {
-            Episode::class => EpisodeEntity::class,
-            Location::class => LocationEntity::class,
-            Character::class => CharacterEntity::class,
-        };
-
-        $fetchIds = [];
-        $localRelations = [];
-        foreach ($ids as $id) {
-            if (!is_int($id)) {
-                $id = $this->getIdFromUrl($id);
-            }
-
-            // check if we have the relation in our database already
-            $result = $this->em->getRepository($repositoryClass)->findOneBy(['remoteId' => $id]);
-            if (!$result) {
-                $fetchIds[$id] = $id;
-            } else {
-                $localRelations[$id] = $result;
-            }
-        }
-
-        $fetchedRelations = [];
-        if ($fetchIds !== []) {
-            $type = new $class();
-            $fetchedRelations = $type->get(...$fetchIds);
-        }
-
-        // if we only fetch 1 id our $fetchedRelations will not be an array.
-        if (!is_array($fetchedRelations)) {
-            $fetchedRelations = [$fetchedRelations];
-        }
-
-        return array_merge($fetchedRelations, $localRelations);
-    }
-
     private function persist(
         EpisodeDto|EpisodeEntity|LocationDto|LocationEntity|CharacterDto|CharacterEntity $data,
     ): EpisodeEntity|LocationEntity|CharacterEntity {
@@ -165,7 +123,7 @@ class InitializeCommand extends Command
             ->setCreatedAt(new DateTimeImmutable($dto->created))
         ;
 
-        $characters = $this->crawlRelations(Character::class, $dto->characters);
+        $characters = $this->crawler->crawlByIds(Character::class, $dto->characters);
         foreach ($characters as $character) {
             $entity->addCharacter($this->persist($character));
         }
@@ -190,13 +148,13 @@ class InitializeCommand extends Command
 
         // sometimes the origin is unknown, which we will leave NULL in the database
         if ($dto->origin->url !== '') {
-            $originLocation = $this->crawlRelations(Location::class, [$dto->origin->url])[0];
+            $originLocation = $this->crawler->crawlByIds(Location::class, [$dto->origin->url])[0];
             $entity->setOriginLocation($this->persist($originLocation));
         }
 
         // sometimes the last known location is unknown, which we will leave NULL in the database
         if ($dto->location->url !== '') {
-            $lastKnownLocation = $this->crawlRelations(Location::class, [$dto->location->url])[0];
+            $lastKnownLocation = $this->crawler->crawlByIds(Location::class, [$dto->location->url])[0];
             $entity->setLocation($this->persist($lastKnownLocation));
         }
 
@@ -218,10 +176,5 @@ class InitializeCommand extends Command
 
         // We purposely do not fetch any relations for a location - set these via Character instead.
         return $entity;
-    }
-
-    private function getIdFromUrl(string $url): int
-    {
-        return (int)substr($url, 1 + (int)strrpos($url, '/'));
     }
 }
