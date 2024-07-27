@@ -2,7 +2,7 @@
 
 Run the following commands in the terminal:  
 * docker compose up --detach  
-* docker compose run php bash
+* docker compose exec php bash
   * composer install
   * bin/console doctrine:migrations:migrate
   * bin/console app:crawl

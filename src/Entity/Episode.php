@@ -26,7 +26,7 @@ class Episode
     private ?\DateTimeImmutable $airDate = null;
 
     #[ORM\Column(length: 255)]
-    private ?string $EpisodeString = null;
+    private ?string $episodeString = null;
 
     #[ORM\Column(length: 255)]
     private ?string $url = null;
@@ -95,12 +95,12 @@ class Episode
 
     public function getEpisodeString(): ?string
     {
-        return $this->EpisodeString;
+        return $this->episodeString;
     }
 
-    public function setEpisodeString(string $EpisodeString): static
+    public function setEpisodeString(string $episodeString): static
     {
-        $this->EpisodeString = $EpisodeString;
+        $this->episodeString = $episodeString;
 
         return $this;
     }
