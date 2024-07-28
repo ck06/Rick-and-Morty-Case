@@ -65,10 +65,10 @@ moreHelp;
 
         /** @var array<CharacterEntity|CharacterDto> $characters */
         $characters = match (true) {
-            $input->getOption(self::OPTION_DIMENSION) => $this->seek(self::OPTION_DIMENSION, $searchString),
-            $input->getOption(self::OPTION_NAME) => $this->seek(self::OPTION_NAME, $searchString),
             $input->getOption(self::OPTION_ID) => $this->seek(self::OPTION_ID, (int)$searchString),
-            default => $this->seek(self::OPTION_ID, (int)$searchString),
+            $input->getOption(self::OPTION_NAME) => $this->seek(self::OPTION_NAME, $searchString),
+            $input->getOption(self::OPTION_DIMENSION) => $this->seek(self::OPTION_DIMENSION, $searchString),
+            default => $this->seek(self::OPTION_NAME, $searchString),
         };
 
         $this->showOutput($io, $characters);
