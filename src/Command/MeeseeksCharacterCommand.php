@@ -62,7 +62,7 @@ help;
 
     protected function seek(string $option, string|int $search)
     {
-        $types = $this->getSeekTypes($option);
+        $types = $this->getSeekTypes();
         [$dbType, $apiType] = [$types['db'], $types['api']];
 
         $findBys = $this->getMappingsForOption($option);
@@ -96,7 +96,7 @@ help;
 
         $characters = [];
         foreach ($foundCharacters as $character) {
-            $foundCharacters[] = $this->seekCharacterFromUrl($character);
+            $characters[] = $this->seekCharacterFromUrl($character);
         }
 
         return $characters;

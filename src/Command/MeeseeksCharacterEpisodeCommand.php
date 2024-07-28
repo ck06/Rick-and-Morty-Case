@@ -15,8 +15,6 @@ class MeeseeksCharacterEpisodeCommand extends MeeseeksCharacterCommand
 {
     public const OPTION_CODE = 'code';
 
-    private SymfonyStyle $io;
-
     protected function additionalHelpText(): string
     {
         return <<<"moreHelp"
@@ -54,8 +52,6 @@ moreHelp;
 
     public function execute(InputInterface $input, OutputInterface $output)
     {
-        $this->io = new SymfonyStyle($input, $output);
-
         // episodes have pretty simple sanitation, strip everything except alphanumeric characters and spaces
         $searchString = $input->getArgument(self::ARGUMENT_SEARCH);
         $searchString = preg_replace('|[^\w\s]|', '', $searchString);
@@ -68,7 +64,8 @@ moreHelp;
             default => $this->seek(self::OPTION_ID, (int)$searchString),
         };
 
-        $this->showOutput($this->io, $characters);
+        $io = new SymfonyStyle($input, $output);
+        $this->showOutput($io, $characters);
 
         return 1;
     }
