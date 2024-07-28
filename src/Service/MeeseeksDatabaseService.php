@@ -54,7 +54,16 @@ class MeeseeksDatabaseService
             return null;
         }
 
-        $result = $this->em->getRepository($seekType)->findBy([$findBy => $value]);
+        $repo = $this->em->getRepository($seekType);
+        if (method_exists($repo, $findBy)) {
+            $result = $repo->$findBy($value);
+        } elseif (method_exists($repo, 'findBy'.ucfirst($findBy))) {
+            $findBy = 'findBy'.ucfirst($findBy);
+            $result = $repo->$findBy($value);
+        } else {
+            $result = $repo->findBy([$findBy => $value]);
+        }
+
         if (count($result) === 0) {
             return null;
         }

@@ -16,28 +16,22 @@ class CharacterRepository extends ServiceEntityRepository
         parent::__construct($registry, Character::class);
     }
 
-    //    /**
-    //     * @return Character[] Returns an array of Character objects
-    //     */
-    //    public function findByExampleField($value): array
-    //    {
-    //        return $this->createQueryBuilder('c')
-    //            ->andWhere('c.exampleField = :val')
-    //            ->setParameter('val', $value)
-    //            ->orderBy('c.id', 'ASC')
-    //            ->setMaxResults(10)
-    //            ->getQuery()
-    //            ->getResult()
-    //        ;
-    //    }
+    public function findByName(string $name): array
+    {
+        // attempt an exact search first
+        $directResult = $this->findBy(['name' => $name]);
+        if ($directResult) {
+            return $directResult;
+        }
 
-    //    public function findOneBySomeField($value): ?Character
-    //    {
-    //        return $this->createQueryBuilder('c')
-    //            ->andWhere('c.exampleField = :val')
-    //            ->setParameter('val', $value)
-    //            ->getQuery()
-    //            ->getOneOrNullResult()
-    //        ;
-    //    }
+        // now try a fuzzy search in case only first or last name is given
+        return $this
+            ->createQueryBuilder('c')
+            ->select()
+            ->where('c.name like :name')
+            ->setParameter('name', '%' . $name . '%')
+            ->getQuery()
+            ->getResult()
+        ;
+    }
 }
