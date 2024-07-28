@@ -131,13 +131,13 @@ help;
                 $origin = 'unknown';
                 if ($result->location->url !== '') {
                     $location = $this->seekLocationFromUrl($result->origin->url);
-                    $origin = $location instanceof LocationEntity ? $location->getName() : $location->name;
+                    $origin = $location instanceof LocationDto ? $location->name : $location->getName();
                 }
 
                 $current = 'unknown';
                 if ($result->location->url !== '') {
                     $location = $this->seekLocationFromUrl($result->location->url);
-                    $current = $location instanceof LocationEntity ? $location->getName() : $location->name;
+                    $current = $location instanceof LocationDto ? $location->name : $location->getName();
                 }
 
                 $row = [
