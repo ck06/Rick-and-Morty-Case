@@ -15,7 +15,7 @@ use Symfony\Component\Console\Output\OutputInterface;
 use Symfony\Component\Console\Style\SymfonyStyle;
 
 #[AsCommand(name: 'meeseeks:character:episode', description: 'Seek all characters in a specific episode')]
-class MeeseeksCharacterEpisodeCommand extends MeeseeksCommand
+class MeeseeksCharacterEpisodeCommand extends MeeseeksCharacterCommand
 {
     public const OPTION_CODE = 'code';
 
@@ -52,33 +52,13 @@ moreHelp;
         $characters = match (true) {
             $input->getOption(self::OPTION_CODE) => $this->seek(self::OPTION_CODE, $searchString),
             $input->getOption(self::OPTION_NAME) => $this->seek(self::OPTION_NAME, $searchString),
-            $input->getOption(self::OPTION_ID) => $this->seek(self::OPTION_ID, (int) $searchString),
-            default => $this->seek(self::OPTION_ID, (int) $searchString),
+            $input->getOption(self::OPTION_ID) => $this->seek(self::OPTION_ID, (int)$searchString),
+            default => $this->seek(self::OPTION_ID, (int)$searchString),
         };
 
-        $this->showOutput($characters);
+        $this->showOutput($this->io, $characters);
 
         return 1;
-    }
-
-    /**
-     * @param iterable<CharacterEntity|CharacterDto> $results
-     */
-    protected function showOutput(iterable $results): void
-    {
-        // TODO prettier output than just character names
-        foreach ($results as $result) {
-            if ($result instanceof CharacterEntity) {
-                $name = $result->getName();
-            } elseif ($result instanceof CharacterDto) {
-                $name = $result->name;
-            } else {
-                $this->io->error("An error occurred while showing results: result not supported");
-                die;
-            }
-
-            $this->io->writeln($name);
-        }
     }
 
     protected function seek(string $type, string|int $search)
@@ -103,21 +83,5 @@ moreHelp;
         }
 
         return $characters;
-    }
-
-    private function seekCharacterFromUrl(string $characterUrl): CharacterEntity|CharacterDto
-    {
-        $id = ApiUtilityService::getIdFromApiUrl($characterUrl);
-        $characterEntity = $this->db->seekOne($this->db::SEEK_CHARACTER, $this->db::SEEK_VALUE_ALL_ID, $id);
-        if ($characterEntity) {
-            return $characterEntity;
-        }
-
-        $characterDto = $this->api->seekOne($this->api::SEEK_CHARACTER, $this->api::SEEK_VALUE_ALL_ID, $id);
-        if ($characterDto) {
-            return $characterDto;
-        }
-
-        throw new NotFoundException("Unable to find character with ID {$id}");
     }
 }
