@@ -3,10 +3,14 @@
 namespace App\Command;
 
 use App\Entity\Character as CharacterEntity;
+use App\Entity\Episode as EpisodeEntity;
+use App\Entity\Location as LocationEntity;
 use App\Service\ApiUtilityService;
 use App\Service\MeeseeksApiService;
 use App\Service\MeeseeksDatabaseService;
 use NickBeen\RickAndMortyPhpApi\Dto\Character as CharacterDto;
+use NickBeen\RickAndMortyPhpApi\Dto\Episode as EpisodeDto;
+use NickBeen\RickAndMortyPhpApi\Dto\Location as LocationDto;
 use NickBeen\RickAndMortyPhpApi\Exceptions\NotFoundException;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputArgument;
@@ -28,6 +32,18 @@ abstract class MeeseeksCharacterCommand extends Command
 
     abstract protected function additionalHelpText(): string;
 
+    abstract protected function getSeekTypes(): array;
+
+    protected function getMappingsForOption(string $option): array
+    {
+        return match ($option) {
+            self::OPTION_NAME => ['db' => $this->db::SEEK_VALUE_ALL_NAME, 'api' => $this->api::SEEK_VALUE_ALL_NAME],
+            self::OPTION_ID => ['db' => $this->db::SEEK_VALUE_ALL_ID, 'api' => $this->api::SEEK_VALUE_ALL_ID],
+
+            // no default, throw an error if we get here.
+        };
+    }
+
     protected function configure()
     {
         $helpText = <<<"help"
@@ -44,7 +60,47 @@ help;
         ;
     }
 
-    abstract protected function seek(string $type, string $search);
+    protected function seek(string $option, string|int $search)
+    {
+        $types = $this->getSeekTypes($option);
+        [$dbType, $apiType] = [$types['db'], $types['api']];
+
+        $findBys = $this->getMappingsForOption($option);
+        [$dbFindBy, $apiFindBy] = [$findBys['db'], $findBys['api']];
+
+        /** @var null|EpisodeEntity|LocationEntity|CharacterEntity $result */
+        $result = $this->db->seekOne($dbType, $dbFindBy, $search);
+        if ($result) {
+            if ($result instanceof CharacterEntity) {
+                return [$result];
+            }
+
+            return $result->getCharacters();
+        }
+
+        /** @var null|EpisodeDto|LocationDto|CharacterDto $result */
+        $result = $this->api->seekOne($apiType, $apiFindBy, $search);
+        if (!$result) {
+            return null;
+        }
+
+        if ($result instanceof CharacterDto) {
+            return [$result];
+        }
+
+        if ($result instanceof LocationDto) {
+            $foundCharacters = $result->residents;
+        } else {
+            $foundCharacters = $result->characters;
+        }
+
+        $characters = [];
+        foreach ($foundCharacters as $character) {
+            $foundCharacters[] = $this->seekCharacterFromUrl($character);
+        }
+
+        return $characters;
+    }
 
     /**
      * @param iterable<CharacterEntity|CharacterDto> $results
@@ -66,7 +122,7 @@ help;
         }
     }
 
-    protected function seekCharacterFromUrl(string $characterUrl): CharacterEntity|CharacterDto
+    private function seekCharacterFromUrl(string $characterUrl): CharacterEntity|CharacterDto
     {
         $id = ApiUtilityService::getIdFromApiUrl($characterUrl);
         $characterEntity = $this->db->seekOne($this->db::SEEK_CHARACTER, $this->db::SEEK_VALUE_ALL_ID, $id);

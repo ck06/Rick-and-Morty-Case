@@ -3,11 +3,7 @@
 namespace App\Command;
 
 use App\Entity\Character as CharacterEntity;
-use App\Entity\Episode as EpisodeEntity;
 use NickBeen\RickAndMortyPhpApi\Dto\Character as CharacterDto;
-use NickBeen\RickAndMortyPhpApi\Dto\Episode as EpisodeDto;
-use App\Service\ApiUtilityService;
-use NickBeen\RickAndMortyPhpApi\Exceptions\NotFoundException;
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Input\InputOption;
@@ -40,6 +36,22 @@ moreHelp;
         $this->addOption(self::OPTION_CODE, null, InputOption::VALUE_NONE, 'Seeks by episode code');
     }
 
+    protected function getSeekTypes(): array
+    {
+        return [
+            'db' => $this->db::SEEK_EPISODE,
+            'api' => $this->api::SEEK_EPISODE,
+        ];
+    }
+
+    protected function getMappingsForOption(string $option): array
+    {
+        return match ($option) {
+            self::OPTION_CODE => ['db' => $this->db::SEEK_VALUE_EPISODE_CODE, 'api' => $this->api::SEEK_VALUE_EPISODE_CODE],
+            default => parent::getMappingsForOption($option)
+        };
+    }
+
     public function execute(InputInterface $input, OutputInterface $output)
     {
         $this->io = new SymfonyStyle($input, $output);
@@ -59,29 +71,5 @@ moreHelp;
         $this->showOutput($this->io, $characters);
 
         return 1;
-    }
-
-    protected function seek(string $type, string|int $search)
-    {
-        $typeMap = [
-            self::OPTION_CODE => ['db' => $this->db::SEEK_VALUE_EPISODE_CODE, 'api' => $this->api::SEEK_VALUE_EPISODE_CODE],
-            self::OPTION_NAME => ['db' => $this->db::SEEK_VALUE_ALL_NAME, 'api' => $this->api::SEEK_VALUE_ALL_NAME],
-            self::OPTION_ID => ['db' => $this->db::SEEK_VALUE_ALL_ID, 'api' => $this->api::SEEK_VALUE_ALL_ID],
-        ];
-
-        /** @var null|EpisodeEntity $episode */
-        $episode = $this->db->seekOne($this->db::SEEK_EPISODE, $typeMap[$type]['db'], $search);
-        if ($episode) {
-            return $episode->getCharacters();
-        }
-
-        /** @var null|EpisodeDto $episode */
-        $episode = $this->api->seekOne($this->api::SEEK_EPISODE, $typeMap[$type]['api'], $search);
-        $characters = [];
-        foreach ($episode->characters as $character) {
-            $characters[] = $this->seekCharacterFromUrl($character);
-        }
-
-        return $characters;
     }
 }
