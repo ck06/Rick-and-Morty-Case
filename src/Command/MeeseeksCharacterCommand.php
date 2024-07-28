@@ -60,7 +60,7 @@ help;
         ;
     }
 
-    protected function seek(string $option, string|int $search)
+    protected function seek(string $option, string|int $search): iterable
     {
         $types = $this->getSeekTypes();
         [$dbType, $apiType] = [$types['db'], $types['api']];
@@ -81,7 +81,7 @@ help;
         /** @var null|EpisodeDto|LocationDto|CharacterDto $result */
         $result = $this->api->seekOne($apiType, $apiFindBy, $search);
         if (!$result) {
-            return null;
+            return [];
         }
 
         if ($result instanceof CharacterDto) {
@@ -107,6 +107,12 @@ help;
      */
     protected function showOutput(SymfonyStyle $io, iterable $results): void
     {
+        if (count($results) === 0) {
+            $io->error('No results found');
+
+            return;
+        }
+
         // TODO prettier output than just character names
         foreach ($results as $result) {
             if ($result instanceof CharacterEntity) {
