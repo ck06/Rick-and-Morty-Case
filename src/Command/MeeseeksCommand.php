@@ -2,15 +2,21 @@
 
 namespace App\Command;
 
-use Doctrine\ORM\EntityManagerInterface;
+use App\Service\MeeseeksApiService;
+use App\Service\MeeseeksDatabaseService;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputArgument;
 use Symfony\Component\Console\Input\InputOption;
 
 abstract class MeeseeksCommand extends Command
 {
+    public const ARGUMENT_SEARCH = 'searchString';
+    public const OPTION_NAME = 'name';
+    public const OPTION_ID = 'id';
+
     public function __construct(
-        protected readonly EntityManagerInterface $em,
+        protected readonly MeeseeksDatabaseService $db,
+        protected readonly MeeseeksApiService $api,
     ) {
         parent::__construct();
     }
@@ -27,17 +33,11 @@ help;
 
         $this
             ->setHelp($helpText)
-            ->addArgument('searchString', InputArgument::REQUIRED, 'What to seek for')
-            ->addOption('name', null, InputOption::VALUE_NONE, 'Seeks by name')
-            ->addOption('id', null, InputOption::VALUE_NONE, 'Seeks by remote ID')
+            ->addArgument(self::ARGUMENT_SEARCH, InputArgument::REQUIRED, 'What to seek for')
+            ->addOption(self::OPTION_NAME, null, InputOption::VALUE_NONE, 'Seeks by name')
+            ->addOption(self::OPTION_ID, null, InputOption::VALUE_NONE, 'Seeks by remote ID')
         ;
     }
 
-    abstract protected function seekByName(string $search): void;
-
-    abstract protected function seekByUrl(string $search): void;
-
-    abstract protected function seekById(string|int $search): void;
-
-    abstract protected function showOutput(iterable $results): void;
+    abstract protected function seek(string $type, string $search);
 }
