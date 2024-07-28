@@ -113,19 +113,52 @@ help;
             return;
         }
 
-        // TODO prettier output than just character names
+        $tableHeader = ['Name', 'Status', 'Species', 'Type', 'Gender', 'Location of origin', 'Last known location'];
+        $tableBody = [];
         foreach ($results as $result) {
+            $row = [];
             if ($result instanceof CharacterEntity) {
-                $name = $result->getName();
+                $row = [
+                    $result->getName(),
+                    $result->getStatus(),
+                    $result->getSpecies(),
+                    $result->getType(),
+                    $result->getGender(),
+                    $result->getOriginLocation()?->getName() ?? 'unknown',
+                    $result->getLocation()?->getName() ?? 'unknown',
+                ];
             } elseif ($result instanceof CharacterDto) {
-                $name = $result->name;
+                $origin = 'unknown';
+                if ($result->location->url !== '') {
+                    $location = $this->seekLocationFromUrl($result->origin->url);
+                    $origin = $location instanceof LocationEntity ? $location->getName() : $location->name;
+                }
+
+                $current = 'unknown';
+                if ($result->location->url !== '') {
+                    $location = $this->seekLocationFromUrl($result->location->url);
+                    $current = $location instanceof LocationEntity ? $location->getName() : $location->name;
+                }
+
+                $row = [
+                    $result->name,
+                    $result->status,
+                    $result->species,
+                    $result->type,
+                    $result->gender,
+                    $origin,
+                    $current,
+                ];
+
             } else {
                 $io->error("An error occurred while showing results: result not supported");
                 die;
             }
 
-            $io->writeln($name);
+            $tableBody[] = $row;
         }
+
+        $io->table($tableHeader, $tableBody);
     }
 
     private function seekCharacterFromUrl(string $characterUrl): CharacterEntity|CharacterDto
@@ -142,5 +175,21 @@ help;
         }
 
         throw new NotFoundException("Unable to find character with ID {$id}");
+    }
+
+    private function seekLocationFromUrl(string $locationUrl): LocationEntity|LocationDto
+    {
+        $id = ApiUtilityService::getIdFromApiUrl($locationUrl);
+        $locationEntity = $this->db->seekOne($this->db::SEEK_LOCATION, $this->db::SEEK_VALUE_ALL_ID, $id);
+        if ($locationEntity) {
+            return $locationEntity;
+        }
+
+        $locationDto = $this->api->seekOne($this->api::SEEK_LOCATION, $this->api::SEEK_VALUE_ALL_ID, $id);
+        if ($locationDto) {
+            return $locationDto;
+        }
+
+        throw new NotFoundException("Unable to find location with ID {$id}");
     }
 }
