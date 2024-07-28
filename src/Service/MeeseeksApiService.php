@@ -66,11 +66,23 @@ class MeeseeksApiService
 
         try {
             $results = $searcher->$findBy($value);
+            if ($findBy !== self::SEEK_VALUE_ALL_ID) {
+                $results = $results->get();
+            }
 
-            // TODO handle various types of results
-            dd($results);
+            if (str_contains(get_class($results), '\\Dto\\Collection')) {
+                // for consistency, return array of DTOs rather than the DtoCollection.
+                return $results->results;
+            }
 
-            return $results;
+            if (str_contains(get_class($results), '\\Dto\\')) {
+                // for consistency, wrap our single result DTO in an array
+                return [$results];
+            }
+
+            // debug statement in case we encounter other result styles.
+            // TODO: remove later
+            dd('MeeseeksApiService', $results);
         } catch (NotFoundException) {
             return null;
         }
@@ -83,10 +95,6 @@ class MeeseeksApiService
             return null;
         }
 
-        // TODO handle various types of results
-        dd($results);
-
         return $results[0];
     }
-
 }

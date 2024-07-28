@@ -52,8 +52,8 @@ moreHelp;
         $characters = match (true) {
             $input->getOption(self::OPTION_CODE) => $this->seek(self::OPTION_CODE, $searchString),
             $input->getOption(self::OPTION_NAME) => $this->seek(self::OPTION_NAME, $searchString),
-            $input->getOption(self::OPTION_ID) => $this->seek(self::OPTION_ID, $searchString),
-            default => $this->seek(self::OPTION_ID, $searchString),
+            $input->getOption(self::OPTION_ID) => $this->seek(self::OPTION_ID, (int) $searchString),
+            default => $this->seek(self::OPTION_ID, (int) $searchString),
         };
 
         $this->showOutput($characters);
@@ -81,7 +81,7 @@ moreHelp;
         }
     }
 
-    protected function seek(string $type, string $search)
+    protected function seek(string $type, string|int $search)
     {
         $typeMap = [
             self::OPTION_CODE => ['db' => $this->db::SEEK_VALUE_EPISODE_CODE, 'api' => $this->api::SEEK_VALUE_EPISODE_CODE],
