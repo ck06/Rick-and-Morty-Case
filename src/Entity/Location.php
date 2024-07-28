@@ -13,12 +13,8 @@ use Doctrine\ORM\Mapping as ORM;
 class Location
 {
     #[ORM\Id]
-    #[ORM\GeneratedValue]
     #[ORM\Column]
     private ?int $id = null;
-
-    #[ORM\Column]
-    private ?int $remoteId = null;
 
     #[ORM\Column(length: 255)]
     private ?string $name = null;
@@ -61,18 +57,6 @@ class Location
     public function setId(int $id): static
     {
         $this->id = $id;
-
-        return $this;
-    }
-
-    public function getRemoteId(): ?int
-    {
-        return $this->remoteId;
-    }
-
-    public function setRemoteId(int $id): static
-    {
-        $this->remoteId = $id;
 
         return $this;
     }

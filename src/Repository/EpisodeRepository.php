@@ -20,13 +20,13 @@ class EpisodeRepository extends ServiceEntityRepository
     {
         $result = $this
             ->createQueryBuilder('e')
-            ->select('e.remoteId')
-            ->orderBy('e.remoteId', 'DESC')
+            ->select('e.id')
+            ->orderBy('e.id', 'DESC')
             ->setMaxResults(1)
             ->getQuery()
             ->execute()
         ;
 
-        return $result[0]['remoteId'] ?? 0;
+        return $result[0]['id'] ?? 0;
     }
 }

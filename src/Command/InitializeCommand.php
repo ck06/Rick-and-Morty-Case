@@ -70,11 +70,9 @@ class InitializeCommand extends Command
                 $dto = $episode->get($current);
                 $this->persist($dto);
 
-                // if we run into performance problems, crank this up to do database stuff in batches.
-                if ($current % 1 === 0) {
-                    $this->em->flush();
-                    $this->em->clear();
-                }
+                // clear UnitOfWork after every episode to keep performance up.
+                $this->em->flush();
+                $this->em->clear();
 
                 // I couldn't find a requests-per-minute limit in the API documentation, so
                 // wait a few seconds between each episode to be respectful towards the API
@@ -107,6 +105,7 @@ class InitializeCommand extends Command
         };
 
         $this->em->persist($entity);
+        $this->em->flush();
 
         return $entity;
     }
@@ -115,13 +114,15 @@ class InitializeCommand extends Command
     {
         $entity = new EpisodeEntity();
         $entity
-            ->setRemoteId($dto->id)
+            ->setId($dto->id)
             ->setName($dto->name)
             ->setEpisodeString($dto->episode)
             ->setUrl($dto->url)
             ->setAirDate(new DateTimeImmutable($dto->air_date))
             ->setCreatedAt(new DateTimeImmutable($dto->created))
         ;
+
+        $this->em->persist($entity);
 
         $characters = $this->crawler->crawlByIds(Character::class, $dto->characters);
         foreach ($characters as $character) {
@@ -135,7 +136,7 @@ class InitializeCommand extends Command
     {
         $entity = new CharacterEntity();
         $entity
-            ->setRemoteId($dto->id)
+            ->setId($dto->id)
             ->setName($dto->name)
             ->setStatus($dto->status)
             ->setSpecies($dto->species)
@@ -145,6 +146,8 @@ class InitializeCommand extends Command
             ->setUrl($dto->url)
             ->setCreatedAt(new DateTimeImmutable($dto->created))
         ;
+
+        $this->em->persist($entity);
 
         // sometimes the origin is unknown, which we will leave NULL in the database
         if ($dto->origin->url !== '') {
@@ -166,13 +169,15 @@ class InitializeCommand extends Command
     {
         $entity = new LocationEntity();
         $entity
-            ->setRemoteId($dto->id)
+            ->setId($dto->id)
             ->setName($dto->name)
             ->setType($dto->type)
             ->setDimension($dto->dimension)
             ->setUrl($dto->url)
             ->setCreatedAt(new DateTimeImmutable($dto->created))
         ;
+
+        $this->em->persist($entity);
 
         // We purposely do not fetch any relations for a location - set these via Character instead.
         return $entity;

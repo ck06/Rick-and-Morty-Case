@@ -105,7 +105,7 @@ moreHelp;
             $search = (int)$search;
         }
 
-        $result = $this->em->getRepository(EpisodeEntity::class)->findOneBy(['remoteId' => $search]);
+        $result = $this->em->getRepository(EpisodeEntity::class)->findOneBy(['id' => $search]);
         if ($result) {
             $this->showOutput($result->getCharacters());
 

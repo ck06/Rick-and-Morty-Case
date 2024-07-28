@@ -61,7 +61,7 @@ class ApiCrawler
             }
 
             // check if we have the relation in our database already
-            $result = $this->em->getRepository($repositoryClass)->findOneBy(['remoteId' => $id]);
+            $result = $this->em->getRepository($repositoryClass)->findOneBy(['id' => $id]);
             if (!$result) {
                 $fetchIds[$id] = $id;
             } else {
